@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f3ee">
+  <title>简算 · 简易计算器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #28352e;
+      --muted: #777d75;
+      --green: #365f49;
+      --paper: #f4f3ee;
+      --line: #e5e7df;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: radial-gradient(ellipse at 20% 10%, #e9eee2 0, transparent 50%), var(--paper);
+    }
+    button { font: inherit; -webkit-tap-highlight-color: transparent; }
+    button:focus-visible { outline: 3px solid #719c72; outline-offset: 4px; }
+    button { touch-action: manipulation; }
+    .page { width: min(880px, calc(100% - 64px)); margin: 0 auto; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 34px 0; }
+    .brand { display: flex; align-items: center; gap: 11px; font-size: 19px; font-weight: 700; letter-spacing: 2px; }
+    .brand-icon {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
+      width: 29px; height: 29px; padding: 6px; background: var(--green); border-radius: 9px;
+    }
+    .brand-icon i { display: block; border-radius: 1px; background: #e9efdf; }
+    .brand-icon i:last-child { background: #b8cc8e; }
+    .offline { display: flex; align-items: center; gap: 7px; color: #5e705d; font-size: 12px; letter-spacing: 1px; }
+    .offline::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #719663; }
+    .intro { margin: 14px 0 28px; }
+    .eyebrow { margin: 0 0 10px; font-size: 10px; font-weight: 600; letter-spacing: 3px; color: #7a846f; }
+    h1 { margin: 0; font-size: 31px; font-weight: 600; letter-spacing: 1px; }
+    .intro p:last-child { margin: 12px 0 0; color: var(--muted); font-size: 14px; line-height: 1.8; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 42px; align-items: start; }
+    .calculator {
+      padding: 22px; border: 1px solid #fff; border-radius: 26px; background: #fdfefb;
+      box-shadow: 0 18px 45px #253a2910, 0 3px 8px #253a2905;
+    }
+    .screen {
+      min-width: 0; min-height: 146px; padding: 18px 17px 16px;
+      margin-bottom: 19px; background: #edf1e7; border: 1px solid #e4e9dc; border-radius: 16px;
+    }
+    .screen-top { display: flex; justify-content: space-between; gap: 8px; color: #78836e; font-size: 10px; letter-spacing: 1.5px; }
+    .screen-top span:last-child { letter-spacing: 0; }
+    .expression {
+      min-height: 21px; margin-top: 14px; text-align: right; color: #73806a; font-size: 13px;
+      overflow-wrap: anywhere; font-variant-numeric: tabular-nums;
+    }
+    .value {
+      display: block; width: 100%; margin-top: 3px; text-align: right; font-size: var(--display-size, 4rem);
+      line-height: 1.15; font-weight: 400; letter-spacing: -2px; overflow-wrap: anywhere;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-variant-numeric: tabular-nums;
+    }
+    .screen.error .value { color: #a3523b; font-family: inherit; font-size: 27px; letter-spacing: 0; }
+    .screen.error .expression { color: #a3523b; }
+    .keypad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .key {
+      display: flex; align-items: center; justify-content: center; height: 61px;
+      padding: 0; border: 1px solid #ecede7; border-radius: 13px; color: #354035;
+      background: #f3f4ef; font-size: 24px; font-weight: 450; cursor: pointer;
+      box-shadow: 0 2px 0 #e9ece3; transition: background .15s, transform .1s, box-shadow .1s;
+    }
+    .key:hover { background: #e9ede3; }
+    .key:active { transform: translateY(2px); box-shadow: none; }
+    .key.utility { color: #747c6d; background: #ebeee6; font-size: 19px; }
+    .key.clear { color: #a26749; background: #f5ebe1; border-color: #f0e4d8; }
+    .key.operator { color: #486342; background: #e3eadb; border-color: #dce5d4; font-size: 28px; }
+    .key.operator:hover, .key.operator[aria-pressed="true"] { background: #ccdabb; border-color: #c1d1ac; }
+    .key.equals { color: #fff; background: var(--green); border-color: var(--green); box-shadow: 0 2px 0 #244733; font-size: 29px; }
+    .key.equals:hover { background: #294c39; }
+    .key svg { width: 23px; height: 23px; }
+    .calculator-foot { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 19px; color: #9a9f91; font-size: 10px; letter-spacing: 1.5px; }
+    .calculator-foot svg { width: 12px; height: 12px; }
+    .sidebar { padding-top: 8px; min-width: 0; }
+    .history-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0 18px; border-bottom: 1px solid #dfe3d8; }
+    h2 { margin: 0; font-size: 15px; font-weight: 600; }
+    .history-heading small { display: block; margin-top: 7px; color: #92998a; font-size: 11px; font-weight: 400; }
+    .clear-history { padding: 7px 0 7px 10px; border: 0; color: #6f7d64; background: transparent; font-size: 12px; cursor: pointer; }
+    .clear-history:disabled { color: #a4aa9d; cursor: default; }
+    .empty { padding: 40px 12px 32px; text-align: center; color: #8e9586; }
+    .empty-icon { width: 39px; height: 39px; margin: 0 auto 15px; display: grid; place-items: center; border: 1px solid #dfe4d6; border-radius: 12px; color: #97a18c; }
+    .empty svg { width: 19px; height: 19px; }
+    .empty p { margin: 0; font-size: 12px; line-height: 1.9; }
+    .empty p:last-child { font-size: 11px; color: #a0a696; }
+    .history { list-style: none; padding: 0; margin: 0; }
+    .history li { padding: 15px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+    .history-expression { color: #8a9280; font-size: 12px; line-height: 1.5; }
+    .history-result { margin-top: 6px; color: #43583b; font-size: 23px; font-weight: 500; font-variant-numeric: tabular-nums; }
+    .tips { margin-top: 26px; padding: 18px; background: #e9ede277; border: 1px solid #e1e6d8; border-radius: 14px; }
+    .tips-title { margin: 0 0 12px; color: #68775f; font-size: 12px; font-weight: 600; }
+    .shortcut { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 9px; color: #8a9381; font-size: 11px; }
+    kbd { font-family: inherit; font-size: 10px; padding: 3px 6px; background: #f6f7f1; border: 1px solid #dce2d3; border-radius: 4px; color: #7d8972; white-space: nowrap; }
+    .note { color: #8e9785; margin: 18px 0 0; font-size: 11px; line-height: 1.9; }
+    footer { padding: 27px 0; text-align: center; color: #a0a497; font-size: 11px; letter-spacing: 1px; }
+    noscript { display: block; padding: 20px; color: #a3523b; background: #f7e7d9; }
+    [hidden] { display: none !important; }
+    @media (max-width: 650px) {
+      .page { width: min(420px, calc(100% - 36px)); }
+      .topbar { padding: 23px 0; }
+      .intro { margin: 12px 0 23px; }
+      h1 { font-size: 27px; }
+      .workspace { grid-template-columns: minmax(0, 1fr); gap: 27px; }
+      .calculator { padding: 18px; border-radius: 23px; }
+      .screen { padding: 16px 13px; min-height: 140px; }
+      .value { font-size: min(12vw, var(--display-size, 4rem)); }
+      .key { height: 59px; }
+      .sidebar { padding: 0 5px; }
+      .empty { padding: 25px 12px; }
+      .tips { margin-top: 20px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .key { transition: none; } }
+  </style>
+</head>
+<body>
+  <noscript>请在浏览器中启用 JavaScript 后使用计算器。此页面无需联网。</noscript>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span>简算</div>
+      <div class="offline">离线可用</div>
+    </header>
+    <main>
+      <div class="intro">
+        <p class="eyebrow">LESS EFFORT. MORE CLARITY.</p>
+        <h1>让计算，简单一点。</h1>
+        <p>日常的加减乘除，打开就能算。</p>
+      </div>
+      <div class="workspace">
+        <section class="calculator" aria-label="简易计算器">
+          <div class="screen" id="screen">
+            <div class="screen-top"><span>CALCULATOR</span><span>标准模式</span></div>
+            <div class="expression" id="expression" aria-live="polite"></div>
+            <output class="value" id="display" aria-label="计算结果" aria-live="polite" aria-atomic="true">0</output>
+          </div>
+          <div class="keypad" id="keypad">
+            <button class="key utility clear" type="button" data-action="clear" aria-label="全部清除">AC</button>
+            <button class="key utility" type="button" data-action="percent" aria-label="百分比">%</button>
+            <button class="key utility" type="button" data-action="backspace" aria-label="删除最后一位">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5h11v14H9l-7-7z"/><path d="m12 9 6 6m0-6-6 6"/></svg>
+            </button>
+            <button class="key operator" type="button" data-action="operator" data-value="/" aria-label="除以" aria-pressed="false">÷</button>
+            <button class="key" type="button" data-action="digit" data-value="7">7</button>
+            <button class="key" type="button" data-action="digit" data-value="8">8</button>
+            <button class="key" type="button" data-action="digit" data-value="9">9</button>
+            <button class="key operator" type="button" data-action="operator" data-value="*" aria-label="乘以" aria-pressed="false">×</button>
+            <button class="key" type="button" data-action="digit" data-value="4">4</button>
+            <button class="key" type="button" data-action="digit" data-value="5">5</button>
+            <button class="key" type="button" data-action="digit" data-value="6">6</button>
+            <button class="key operator" type="button" data-action="operator" data-value="-" aria-label="减去" aria-pressed="false">−</button>
+            <button class="key" type="button" data-action="digit" data-value="1">1</button>
+            <button class="key" type="button" data-action="digit" data-value="2">2</button>
+            <button class="key" type="button" data-action="digit" data-value="3">3</button>
+            <button class="key operator" type="button" data-action="operator" data-value="+" aria-label="加上" aria-pressed="false">+</button>
+            <button class="key utility" type="button" data-action="sign" aria-label="切换正负号">+/−</button>
+            <button class="key" type="button" data-action="digit" data-value="0">0</button>
+            <button class="key" type="button" data-action="decimal" aria-label="小数点">.</button>
+            <button class="key equals" type="button" data-action="equals" aria-label="等于">=</button>
+          </div>
+          <div class="calculator-foot">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5 7V4a3 3 0 0 1 6 0v3"/></svg>
+            本地计算 · 无需联网
+          </div>
+        </section>
+        <aside class="sidebar" aria-label="计算记录和使用提示">
+          <div class="history-heading">
+            <h2>最近计算<small>本次打开的计算记录</small></h2>
+            <button class="clear-history" id="clear-history" type="button" disabled>清空记录</button>
+          </div>
+          <div class="empty" id="empty-history">
+            <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 5v5h5"/><path d="M4.5 10a8 8 0 1 1 0 5M12 7v5l3 2"/></svg></div>
+            <p>还没有计算记录</p><p>按下等号，答案会留在这里</p>
+          </div>
+          <ol class="history" id="history" aria-label="最近六条计算记录"></ol>
+          <div class="tips">
+            <p class="tips-title">键盘也能轻松操作</p>
+            <div class="shortcut"><span>输入数字与运算符</span><kbd>0–9 &nbsp; + − * /</kbd></div>
+            <div class="shortcut"><span>得出结果</span><kbd>Enter 或 =</kbd></div>
+            <div class="shortcut"><span>删除一位 / 全部清除</span><kbd>⌫ / Esc</kbd></div>
+          </div>
+          <p class="note">按输入顺序连续计算。<br>百分比将当前数字除以 100；最多显示 12 位有效数字。</p>
+        </aside>
+      </div>
+    </main>
+    <footer>一个小工具，解决日常的小问题。</footer>
+  </div>
+  <script>
+    'use strict';
+
+    const display = document.getElementById('display');
+    const expressionDisplay = document.getElementById('expression');
+    const screen = document.getElementById('screen');
+    const historyList = document.getElementById('history');
+    const symbols = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+    const records = [];
+    const state = {};
+
+    function reset() {
+      Object.assign(state, {
+        input: '0', stored: null, operator: null, replaceInput: false, awaitingOperand: false,
+        freshResult: false, repeat: null, expression: '', error: false
+      });
+    }
+
+    function format(value) {
+      const text = String(value);
+      if (text.includes('e')) return text;
+      const parts = text.split('.');
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      return parts.join('.');
+    }
+
+    function render() {
+      const text = state.error ? '无法计算' : format(state.input);
+      display.textContent = text;
+      display.style.setProperty('--display-size',
+        text.length > 14 ? '1.65rem' : text.length > 10 ? '2.1rem' : text.length > 7 ? '2.8rem' : '4rem');
+      expressionDisplay.textContent = state.expression;
+      screen.classList.toggle('error', state.error);
+      document.querySelectorAll('[data-action="operator"]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.value === state.operator));
+      });
+    }
+
+    function fail(message) {
+      reset();
+      state.error = true;
+      state.expression = message + ' · 输入数字重新开始';
+    }
+
+    function normalize(value) {
+      return Number(value.toPrecision(12));
+    }
+
+    function calculate(left, operator, right) {
+      if (operator === '/' && right === 0) {
+        fail('除数不能为 0');
+        return null;
+      }
+      let value;
+      switch (operator) {
+        case '+': value = left + right; break;
+        case '-': value = left - right; break;
+        case '*': value = left * right; break;
+        case '/': value = left / right; break;
+        default: return null;
+      }
+      if (!Number.isFinite(value)) {
+        fail('结果超出可计算范围');
+        return null;
+      }
+      const rounded = normalize(value);
+      if (!Number.isFinite(rounded)) {
+        fail('结果超出可计算范围');
+        return null;
+      }
+      return rounded;
+    }
+
+    function prepareInput() {
+      if (state.error) reset();
+      if (state.freshResult) {
+        state.expression = '';
+        state.repeat = null;
+        state.freshResult = false;
+      }
+    }
+
+    function digit(value) {
+      prepareInput();
+      state.awaitingOperand = false;
+      if (state.replaceInput) {
+        state.input = value;
+        state.replaceInput = false;
+      } else if (state.input === '0') {
+        state.input = value;
+      } else if (state.input === '-0') {
+        state.input = '-' + value;
+      } else if (state.input.replace(/\D/g, '').length < 12) {
+        state.input += value;
+      }
+    }
+
+    function decimal() {
+      prepareInput();
+      state.awaitingOperand = false;
+      if (state.replaceInput) {
+        state.input = '0.';
+        state.replaceInput = false;
+      } else if (!state.input.includes('.') && !state.input.includes('e')) {
+        state.input += '.';
+      }
+    }
+
+    function operator(value) {
+      if (state.error) return;
+      const current = Number(state.input);
+      if (state.operator && !state.awaitingOperand) {
+        const result = calculate(state.stored, state.operator, current);
+        if (result === null) return;
+        state.stored = result;
+        state.input = String(result);
+      } else {
+        state.stored = current;
+      }
+      state.operator = value;
+      state.replaceInput = true;
+      state.awaitingOperand = true;
+      state.freshResult = false;
+      state.repeat = null;
+      state.expression = format(state.stored) + ' ' + symbols[value];
+    }
+
+    function renderHistory() {
+      historyList.replaceChildren();
+      for (const record of records) {
+        const item = document.createElement('li');
+        const expression = document.createElement('div');
+        expression.className = 'history-expression';
+        expression.textContent = record.expression;
+        const result = document.createElement('div');
+        result.className = 'history-result';
+        result.textContent = '= ' + format(record.result);
+        item.append(expression, result);
+        historyList.append(item);
+      }
+      document.getElementById('empty-history').hidden = records.length > 0;
+      document.getElementById('clear-history').disabled = records.length === 0;
+    }
+
+    function equals() {
+      if (state.error) return;
+      let left = state.stored;
+      let op = state.operator;
+      let right = Number(state.input);
+      if (!op && state.freshResult && state.repeat) {
+        left = right;
+        op = state.repeat.operator;
+        right = state.repeat.right;
+      }
+      if (!op) {
+        state.expression = format(state.input) + ' =';
+        state.replaceInput = true;
+        state.freshResult = true;
+        return;
+      }
+      const result = calculate(left, op, right);
+      if (result === null) return;
+      const expression = format(left) + ' ' + symbols[op] + ' ' + format(right);
+      records.unshift({ expression, result });
+      if (records.length > 6) records.pop();
+      renderHistory();
+      state.input = String(result);
+      state.expression = expression + ' =';
+      state.repeat = { operator: op, right };
+      state.operator = null;
+      state.stored = null;
+      state.awaitingOperand = false;
+      state.replaceInput = true;
+      state.freshResult = true;
+    }
+
+    function sign() {
+      if (state.error) return;
+      if (state.awaitingOperand) {
+        state.input = '-0';
+        state.replaceInput = false;
+        state.awaitingOperand = false;
+      } else {
+        state.input = state.input.startsWith('-') ? state.input.slice(1) : '-' + state.input;
+      }
+      state.freshResult = false;
+      state.repeat = null;
+      if (!state.operator) state.expression = '';
+    }
+
+    function percent() {
+      if (state.error) return;
+      state.input = String(normalize(Number(state.input) / 100));
+      state.replaceInput = true;
+      state.awaitingOperand = false;
+      state.freshResult = !state.operator;
+      state.repeat = null;
+      if (!state.operator) state.expression = '';
+    }
+
+    function backspace() {
+      if (state.error || state.freshResult) {
+        reset();
+      } else if (state.awaitingOperand) {
+        return;
+      } else if (state.replaceInput) {
+        state.input = '0';
+        state.replaceInput = false;
+      } else {
+        state.input = state.input.slice(0, -1);
+        if (state.input === '' || state.input === '-') state.input = '0';
+      }
+    }
+
+    function act(action, value) {
+      switch (action) {
+        case 'digit': digit(value); break;
+        case 'decimal': decimal(); break;
+        case 'operator': operator(value); break;
+        case 'equals': equals(); break;
+        case 'clear': reset(); break;
+        case 'sign': sign(); break;
+        case 'percent': percent(); break;
+        case 'backspace': backspace(); break;
+      }
+      render();
+    }
+
+    document.getElementById('keypad').addEventListener('click', event => {
+      const button = event.target.closest('button[data-action]');
+      if (button) act(button.dataset.action, button.dataset.value);
+    });
+    document.getElementById('clear-history').addEventListener('click', () => {
+      records.length = 0;
+      renderHistory();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+      if (event.key === 'Enter' && event.target === document.getElementById('clear-history')) return;
+      let action;
+      let value;
+      if (/^[0-9]$/.test(event.key)) { action = 'digit'; value = event.key; }
+      else if (['+', '-', '*', '/'].includes(event.key)) { action = 'operator'; value = event.key; }
+      else if (event.key === '.' || event.key === ',') action = 'decimal';
+      else if (event.key === 'Enter' || event.key === '=') action = 'equals';
+      else if (event.key === 'Backspace') action = 'backspace';
+      else if (event.key === 'Escape' || event.key === 'Delete') action = 'clear';
+      else if (event.key === '%') action = 'percent';
+      else if (event.key === 'F9') action = 'sign';
+      if (action) { event.preventDefault(); act(action, value); }
+    });
+
+    reset();
+    render();
+  </script>
+</body>
+</html>
